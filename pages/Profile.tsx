@@ -2,7 +2,11 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useAppContext } from '../context/AppContext';
 import { User, UserRole } from '../types';
-import { User as UserIcon, Mail, MapPin, Globe, Github, Linkedin, Briefcase, FileText, Upload, Save, Building2, Loader2, Sparkles, CheckCircle2, Pencil, Image as ImageIcon, Camera, Trash2, Plus, AlertTriangle } from 'lucide-react';
+import { 
+  User as UserIcon, Mail, MapPin, Globe, Github, Linkedin, Briefcase, 
+  FileText, Upload, Save, Building2, Loader2, Sparkles, CheckCircle2, 
+  Pencil, Image as ImageIcon, Camera, Trash2, Plus, AlertTriangle, Phone, GraduationCap 
+} from 'lucide-react';
 import { GoogleGenAI, Type } from "@google/genai";
 
 const Profile: React.FC = () => {
@@ -43,8 +47,11 @@ const Profile: React.FC = () => {
       setFormData({
         name: user.name,
         email: user.email,
+        phone: user.phone || '',
         location: user.location || '',
         bio: user.bio || '',
+        experience: user.experience || '',
+        education: user.education || '',
         companyName: user.companyName || '',
         companyLogo: user.companyLogo || '',
         profilePic: user.profilePic || '',
@@ -54,6 +61,7 @@ const Profile: React.FC = () => {
         linkedinUrl: user.linkedinUrl || '',
         teamPhotos: user.teamPhotos || [],
         cultureDescription: user.cultureDescription || '',
+        resumeUrl: user.resumeUrl || '',
       });
     }
   };
@@ -64,9 +72,9 @@ const Profile: React.FC = () => {
     
     // Simple comparison for essential fields
     const compareFields: (keyof User)[] = [
-      'name', 'email', 'location', 'bio', 'companyName', 
+      'name', 'email', 'location', 'bio', 'companyName', 'phone',
       'companyLogo', 'profilePic', 'website', 'githubUrl', 
-      'linkedinUrl', 'cultureDescription'
+      'linkedinUrl', 'cultureDescription', 'experience', 'education'
     ];
 
     for (const field of compareFields) {
@@ -104,28 +112,24 @@ const Profile: React.FC = () => {
   };
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Explicitly cast file to avoid unknown type issues
-    const file = e.target.files?.[0] as File | undefined;
+    const file = e.target.files?.[0] as any;
     if (file) {
       const reader = new FileReader();
       reader.onload = () => {
         handleInputChange('companyLogo', reader.result as string);
       };
-      // Fixed: Cast file to any to satisfy readAsDataURL when File type is ambiguous in the build context
-      reader.readAsDataURL(file as any);
+      reader.readAsDataURL(file);
     }
   };
 
   const handleProfilePicUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Explicitly cast file to avoid unknown type issues
-    const file = e.target.files?.[0] as File | undefined;
+    const file = e.target.files?.[0] as any;
     if (file) {
       const reader = new FileReader();
       reader.onload = () => {
         handleInputChange('profilePic', reader.result as string);
       };
-      // Fixed: Cast file to any to satisfy readAsDataURL when File type is ambiguous in the build context
-      reader.readAsDataURL(file as any);
+      reader.readAsDataURL(file);
     }
   };
 
@@ -138,9 +142,20 @@ const Profile: React.FC = () => {
           const newPhotos = [...(formData.teamPhotos || []), reader.result as string];
           handleInputChange('teamPhotos', newPhotos);
         };
-        // Fixed: Cast file to any to satisfy readAsDataURL when File type is ambiguous in the build context
         reader.readAsDataURL(file as any);
       });
+    }
+  };
+
+  const handleResumeManualUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] as any;
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        handleInputChange('resumeUrl', reader.result as string);
+        alert("Resume uploaded successfully! It will be saved when you click 'Confirm & Save'.");
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -151,8 +166,7 @@ const Profile: React.FC = () => {
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const target = e.target as HTMLInputElement;
-    // Explicitly cast to avoid unknown type errors from some compiler settings
-    const file = target.files?.[0] as File | undefined;
+    const file = target.files?.[0] as any;
     if (!file) return;
 
     setIsParsing(true);
@@ -171,8 +185,7 @@ const Profile: React.FC = () => {
           }
         };
         reader.onerror = () => reject(new Error("File reading failed"));
-        // Fixed: Cast file to any to satisfy readAsDataURL when File type is ambiguous in the build context
-        reader.readAsDataURL(file as any);
+        reader.readAsDataURL(file);
       });
 
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -187,7 +200,7 @@ const Profile: React.FC = () => {
               },
             },
             {
-              text: "Analyze this resume and extract the following information. Be accurate and professional. If information is missing, use reasonable defaults or empty strings.",
+              text: "Analyze this resume and extract information. Return JSON with name, email, skills (array), location, bio, experience (summary), education (summary). Be accurate.",
             },
           ],
         },
@@ -196,17 +209,14 @@ const Profile: React.FC = () => {
           responseSchema: {
             type: Type.OBJECT,
             properties: {
-              name: { type: Type.STRING, description: "Full name of the candidate" },
-              email: { type: Type.STRING, description: "Email address" },
-              skills: { 
-                type: Type.ARRAY, 
-                items: { type: Type.STRING },
-                description: "List of top 5 technical skills" 
-              },
-              location: { type: Type.STRING, description: "City and State/Country" },
-              bio: { type: Type.STRING, description: "A professional summary or bio (max 150 characters)" },
+              name: { type: Type.STRING },
+              email: { type: Type.STRING },
+              skills: { type: Type.ARRAY, items: { type: Type.STRING } },
+              location: { type: Type.STRING },
+              bio: { type: Type.STRING },
+              experience: { type: Type.STRING },
+              education: { type: Type.STRING },
             },
-            required: ["name", "email", "skills", "location", "bio"],
           },
         },
       });
@@ -214,19 +224,18 @@ const Profile: React.FC = () => {
       const rawText = response.text;
       if (rawText) {
         const extractedData = JSON.parse(rawText);
-        if (editing) {
-          setFormData(prev => ({ ...prev, ...extractedData }));
-        } else {
-          // If not currently editing, enter editing mode and apply extracted data
-          setEditing(true);
-          setFormData(prev => ({ ...prev, ...extractedData }));
-        }
+        setEditing(true);
+        setFormData(prev => ({ 
+          ...prev, 
+          ...extractedData,
+          resumeUrl: `data:${file.type};base64,${base64Data}` // Store resume in memory
+        }));
         setParseSuccess(true);
         setTimeout(() => setParseSuccess(false), 5000);
       }
     } catch (error) {
       console.error("Error parsing resume:", error);
-      alert("Failed to parse resume. Please try again or fill manually.");
+      alert("Failed to parse resume. Please fill manually.");
     } finally {
       setIsParsing(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -292,20 +301,14 @@ const Profile: React.FC = () => {
                   <Upload className="w-4 h-4" />
                 </button>
               )}
-              <input 
-                type="file" 
-                ref={profilePicInputRef} 
-                className="hidden" 
-                accept="image/*" 
-                onChange={handleProfilePicUpload} 
-              />
+              <input type="file" ref={profilePicInputRef} className="hidden" accept="image/*" onChange={handleProfilePicUpload} />
             </div>
             
             <div className="flex-grow space-y-4 w-full">
               {editing ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4 px-1">Full Name</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1 mb-1 block">Full Name</label>
                     <input 
                       type="text" 
                       value={formData.name || ''} 
@@ -314,16 +317,19 @@ const Profile: React.FC = () => {
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4 px-1">Email Address</label>
-                    <input 
-                      type="email" 
-                      value={formData.email || ''} 
-                      onChange={(e) => handleInputChange('email', e.target.value)}
-                      className="text-lg text-slate-600 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 outline-none w-full focus:ring-2 focus:ring-blue-500" 
-                    />
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1 mb-1 block">Phone Number</label>
+                    <div className="relative">
+                      <Phone className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input 
+                        type="tel" 
+                        value={formData.phone || ''} 
+                        onChange={(e) => handleInputChange('phone', e.target.value)}
+                        className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" 
+                      />
+                    </div>
                   </div>
                   <div className="space-y-1 md:col-span-2">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 px-1">Location</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1 mb-1 block">Location</label>
                     <div className="relative">
                       <MapPin className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                       <input 
@@ -341,14 +347,8 @@ const Profile: React.FC = () => {
                   <h2 className="text-3xl font-bold text-slate-900">{user.name}</h2>
                   <div className="flex flex-wrap gap-4 text-slate-500 font-medium">
                     <span className="flex items-center gap-1.5"><Mail className="w-4 h-4" /> {user.email}</span>
+                    <span className="flex items-center gap-1.5"><Phone className="w-4 h-4" /> {user.phone || 'No phone'}</span>
                     <span className="flex items-center gap-1.5"><MapPin className="w-4 h-4" /> {user.location || 'Location Not Set'}</span>
-                    <span className={`px-2.5 py-1 rounded-full text-[10px] uppercase font-bold tracking-widest border ${
-                      user.role === UserRole.CANDIDATE 
-                      ? 'bg-blue-50 text-blue-600 border-blue-100' 
-                      : 'bg-purple-50 text-purple-600 border-purple-100'
-                    }`}>
-                      {user.role}
-                    </span>
                   </div>
                 </>
               )}
@@ -356,268 +356,88 @@ const Profile: React.FC = () => {
           </div>
         </div>
 
-        {/* Candidate Specific: Resume & Skills */}
+        {/* Candidate Specific: Resume & Skills & Bio */}
         {user.role === UserRole.CANDIDATE && (
-          <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-8">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                <FileText className="w-5 h-5 text-blue-600" /> Professional Experience
-              </h3>
-              {isParsing && (
-                <div className="flex items-center gap-2 text-blue-600 font-bold text-sm">
-                  <Loader2 className="w-4 h-4 animate-spin" /> Analyzing Resume...
-                </div>
-              )}
-            </div>
-            
-            <input 
-              type="file" 
-              ref={fileInputRef} 
-              className="hidden" 
-              accept=".pdf,.doc,.docx" 
-              onChange={handleFileChange}
-            />
-
-            {(!editing || isParsing) && (
-              <div 
-                onClick={() => !isParsing && fileInputRef.current?.click()}
-                className={`border-2 border-dashed rounded-3xl p-10 text-center transition-all cursor-pointer relative overflow-hidden group
-                  ${isParsing ? 'bg-slate-50 border-blue-200 cursor-not-allowed' : 'border-slate-100 hover:border-blue-400 hover:bg-blue-50/30'}
-                `}
-              >
-                {isParsing ? (
-                  <div className="flex flex-col items-center">
-                    <Sparkles className="w-12 h-12 text-blue-500 mb-4 animate-bounce" />
-                    <p className="text-blue-600 font-bold text-lg">AI Resume Extraction...</p>
-                    <p className="text-slate-400 text-sm mt-2">Automatically updating your profile data</p>
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center">
-                    <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                      <Upload className="w-8 h-8" />
-                    </div>
-                    <p className="text-slate-700 font-bold text-lg">Upload Resume to Auto-Fill</p>
-                    <p className="text-slate-400 text-sm mt-2 max-w-xs mx-auto">Update your profile info instantly by uploading your latest resume.</p>
-                  </div>
-                )}
+          <div className="space-y-8">
+            <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-8">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-blue-600" /> Professional Overview
+                </h3>
+                {isParsing && <div className="flex items-center gap-2 text-blue-600 font-bold text-sm"><Loader2 className="w-4 h-4 animate-spin" /> Analyzing...</div>}
               </div>
-            )}
-
-            <div className="mt-8 space-y-4">
-              <h4 className="font-bold text-slate-700 text-xs uppercase tracking-widest px-1">Top Skills</h4>
-              {editing ? (
-                 <input 
-                   type="text" 
-                   value={(formData.skills || []).join(', ')} 
-                   onChange={(e) => handleInputChange('skills', e.target.value.split(',').map(s => s.trim()))}
-                   placeholder="e.g. React, TypeScript, UI Design, Backend Development"
-                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500" 
-                 />
-              ) : (
-                <div className="flex flex-wrap gap-2">
-                  {(user.skills || []).length > 0 ? user.skills?.map((skill, idx) => (
-                    <span key={idx} className="bg-slate-100 text-slate-600 px-3 py-1.5 rounded-lg text-sm font-medium border border-slate-200">
-                      {skill}
-                    </span>
-                  )) : <p className="text-slate-400 italic text-sm">No skills listed yet.</p>}
+              
+              <input type="file" ref={fileInputRef} className="hidden" accept=".pdf,.doc,.docx" onChange={handleFileChange} />
+              
+              {(!editing || isParsing) && (
+                <div onClick={() => !isParsing && fileInputRef.current?.click()} className={`border-2 border-dashed rounded-3xl p-10 text-center transition-all cursor-pointer ${isParsing ? 'bg-slate-50 border-blue-200 cursor-not-allowed' : 'border-slate-100 hover:border-blue-400 hover:bg-blue-50/30'}`}>
+                  <div className="flex flex-col items-center">
+                    <Upload className="w-8 h-8 text-blue-600 mb-4" />
+                    <p className="text-slate-700 font-bold text-lg">Upload Resume to Auto-Fill</p>
+                    <p className="text-slate-400 text-sm mt-2">PDF, DOC, DOCX accepted</p>
+                  </div>
                 </div>
               )}
+
+              <div className="mt-8 space-y-6">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1 mb-1 block">Professional Summary</label>
+                  {editing ? (
+                    <textarea value={formData.bio || ''} onChange={(e) => handleInputChange('bio', e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 outline-none focus:ring-2 focus:ring-blue-500 h-24 resize-none" />
+                  ) : (
+                    <p className="text-slate-600">{user.bio || 'Add a summary...'}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1 mb-1 block">Experience History</label>
+                  {editing ? (
+                    <textarea value={formData.experience || ''} onChange={(e) => handleInputChange('experience', e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 outline-none focus:ring-2 focus:ring-blue-500 h-32 resize-none" placeholder="List your previous roles and achievements..." />
+                  ) : (
+                    <p className="text-slate-600 whitespace-pre-wrap">{user.experience || 'Add experience details...'}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1 mb-1 block">Education Background</label>
+                  {editing ? (
+                    <textarea value={formData.education || ''} onChange={(e) => handleInputChange('education', e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 outline-none focus:ring-2 focus:ring-blue-500 h-24 resize-none" placeholder="University, Degree, Year..." />
+                  ) : (
+                    <p className="text-slate-600 whitespace-pre-wrap">{user.education || 'Add education details...'}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1 mb-1 block">Skills</label>
+                  {editing ? (
+                     <input type="text" value={(formData.skills || []).join(', ')} onChange={(e) => handleInputChange('skills', e.target.value.split(',').map(s => s.trim()))} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500" />
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {(user.skills || []).map((skill, idx) => (
+                        <span key={idx} className="bg-slate-100 text-slate-600 px-3 py-1.5 rounded-lg text-sm font-medium border border-slate-200">{skill}</span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         )}
 
-        {/* Common Section: Bio & About */}
-        <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-8">
-          <h3 className="text-xl font-bold text-slate-900 mb-6 flex items-center gap-2">
-            <Globe className="w-5 h-5 text-blue-600" /> {user.role === UserRole.CANDIDATE ? 'Professional Bio' : 'About Company'}
-          </h3>
-          <div className="space-y-6">
-            <div>
-              <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 px-1">Description</label>
-              {editing ? (
-                <textarea 
-                  value={formData.bio || ''} 
-                  onChange={(e) => handleInputChange('bio', e.target.value)}
-                  placeholder={user.role === UserRole.CANDIDATE ? "Tell us about your professional journey..." : "Describe your company culture, values, and mission..."}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 outline-none focus:ring-2 focus:ring-blue-500 h-40 resize-none transition-all"
-                />
-              ) : (
-                <p className="text-slate-600 leading-relaxed whitespace-pre-wrap">
-                  {user.bio || (user.role === UserRole.CANDIDATE ? 'Add a professional summary to help recruiters find you.' : 'Add a company description to attract top talent.')}
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Employer Specific: Branding */}
+        {/* Employer Branding Section */}
         {user.role === UserRole.EMPLOYER && (
           <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-8">
             <h3 className="text-xl font-bold text-slate-900 mb-6 flex items-center gap-2">
-              <Building2 className="w-5 h-5 text-purple-600" /> Company Identity & Branding
+              <Building2 className="w-5 h-5 text-purple-600" /> Company Identity
             </h3>
-            <div className="space-y-10">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 px-1">Company Legal Name</label>
-                  {editing ? (
-                    <input 
-                      type="text" 
-                      value={formData.companyName || ''} 
-                      onChange={(e) => handleInputChange('companyName', e.target.value)}
-                      placeholder="e.g. Acme Innovations Pvt Ltd"
-                      className="w-full bg-slate-50 border border-slate-200 p-4 rounded-xl outline-none focus:ring-2 focus:ring-purple-500 font-bold" 
-                    />
-                  ) : (
-                    <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 font-bold text-slate-800">
-                      {user.companyName || 'Not Specified'}
-                    </div>
-                  )}
-                </div>
-                
-                <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 px-1">Corporate Website</label>
-                  <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-xl border border-slate-100 focus-within:ring-2 focus-within:ring-purple-500 transition-all">
-                    <Globe className="w-5 h-5 text-slate-400" />
-                    <input 
-                      type="text" 
-                      placeholder="https://company.com" 
-                      value={formData.website || ''}
-                      onChange={(e) => handleInputChange('website', e.target.value)}
-                      className="bg-transparent outline-none flex-grow text-sm disabled:opacity-50" 
-                      disabled={!editing} 
-                    />
-                  </div>
-                </div>
-              </div>
-
+            <div className="space-y-6">
               <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 px-1">Brand Logo</label>
-                <div className="flex items-center gap-6">
-                  <div className="w-32 h-32 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 flex items-center justify-center overflow-hidden bg-white">
-                    {(editing ? formData.companyLogo : user.companyLogo) ? (
-                      <img src={editing ? formData.companyLogo : user.companyLogo} className="w-full h-full object-contain p-2" alt="Company Logo" />
-                    ) : (
-                      <ImageIcon className="w-10 h-10 text-slate-300" />
-                    )}
-                  </div>
-                  {editing && (
-                    <div className="space-y-2">
-                      <button 
-                        onClick={() => logoInputRef.current?.click()}
-                        className="bg-white border border-slate-200 px-6 py-2.5 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 shadow-sm flex items-center gap-2"
-                      >
-                        <Upload className="w-4 h-4" /> Upload Brand Logo
-                      </button>
-                    </div>
-                  )}
-                  <input type="file" ref={logoInputRef} className="hidden" accept="image/*" onChange={handleLogoUpload} />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 px-1">Company Culture Description</label>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1 mb-1 block">Company Name</label>
                 {editing ? (
-                  <textarea 
-                    value={formData.cultureDescription || ''} 
-                    onChange={(e) => handleInputChange('cultureDescription', e.target.value)}
-                    placeholder="Describe your company work life, environment, and values..."
-                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 outline-none focus:ring-2 focus:ring-blue-500 h-32 resize-none transition-all"
-                  />
+                  <input type="text" value={formData.companyName || ''} onChange={(e) => handleInputChange('companyName', e.target.value)} className="w-full bg-slate-50 border border-slate-200 p-4 rounded-xl outline-none focus:ring-2 focus:ring-purple-500 font-bold" />
                 ) : (
-                  <p className="text-slate-600 leading-relaxed italic border-l-4 border-slate-200 pl-4">
-                    {user.cultureDescription || 'Add a culture description to attract top talent.'}
-                  </p>
+                  <p className="font-bold text-slate-800">{user.companyName || 'Not set'}</p>
                 )}
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 px-1">Team & Office Photos</label>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  {(editing ? formData.teamPhotos : user.teamPhotos)?.map((photo, i) => (
-                    <div key={i} className="aspect-video bg-slate-50 rounded-xl relative overflow-hidden group border border-slate-100">
-                      <img src={photo} alt={`Team ${i}`} className="w-full h-full object-cover" />
-                      {editing && (
-                        <button 
-                          onClick={() => removeTeamPhoto(i)}
-                          className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                  {editing && (
-                    <button 
-                      onClick={() => teamPhotosInputRef.current?.click()}
-                      className="aspect-video bg-slate-50 border-2 border-dashed border-slate-200 rounded-xl flex flex-col items-center justify-center text-slate-400 hover:border-blue-400 hover:text-blue-500 transition-all"
-                    >
-                      <Plus className="w-6 h-6 mb-1" />
-                      <span className="text-[10px] font-bold">Add Photo</span>
-                    </button>
-                  )}
-                </div>
-                <input 
-                  type="file" 
-                  ref={teamPhotosInputRef} 
-                  className="hidden" 
-                  accept="image/*" 
-                  multiple 
-                  onChange={handleTeamPhotoUpload} 
-                />
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Social Links & Portfolio for Candidates */}
-        {user.role === UserRole.CANDIDATE && (
-          <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-8">
-            <h3 className="text-xl font-bold text-slate-900 mb-6 flex items-center gap-2">
-               <Globe className="w-5 h-5 text-blue-600" /> Presence & Links
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-4">
-                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1">Portfolio / Website</label>
-                <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-xl border border-slate-100 focus-within:ring-2 focus-within:ring-blue-500 transition-all">
-                  <Globe className="w-5 h-5 text-slate-400" />
-                  <input 
-                    type="text" 
-                    placeholder="https://yourportfolio.com" 
-                    value={formData.website || ''}
-                    onChange={(e) => handleInputChange('website', e.target.value)}
-                    className="bg-transparent outline-none flex-grow text-sm disabled:opacity-50" 
-                    disabled={!editing} 
-                  />
-                </div>
-              </div>
-              <div className="space-y-4">
-                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1">GitHub Profile</label>
-                <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-xl border border-slate-100 focus-within:ring-2 focus-within:ring-blue-500 transition-all">
-                  <Github className="w-5 h-5 text-slate-700" />
-                  <input 
-                    type="text" 
-                    placeholder="github.com/yourusername" 
-                    value={formData.githubUrl || ''}
-                    onChange={(e) => handleInputChange('githubUrl', e.target.value)}
-                    className="bg-transparent outline-none flex-grow text-sm disabled:opacity-50" 
-                    disabled={!editing} 
-                  />
-                </div>
-              </div>
-              <div className="space-y-4 md:col-span-2">
-                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1">LinkedIn Profile</label>
-                <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-xl border border-slate-100 focus-within:ring-2 focus-within:ring-blue-500 transition-all">
-                  <Linkedin className="w-5 h-5 text-blue-700" />
-                  <input 
-                    type="text" 
-                    placeholder="linkedin.com/in/yourprofile" 
-                    value={formData.linkedinUrl || ''}
-                    onChange={(e) => handleInputChange('linkedinUrl', e.target.value)}
-                    className="bg-transparent outline-none flex-grow text-sm disabled:opacity-50" 
-                    disabled={!editing} 
-                  />
-                </div>
               </div>
             </div>
           </div>
@@ -625,26 +445,10 @@ const Profile: React.FC = () => {
 
         {editing && (
           <div className="fixed bottom-0 left-0 right-0 z-[60] bg-white/80 backdrop-blur-xl border-t border-slate-200 p-6 flex justify-center shadow-[0_-20px_50px_rgba(0,0,0,0.1)]">
-            <div className="max-w-4xl w-full flex gap-4 items-center">
-              {isDirty && (
-                <div className="hidden md:flex items-center gap-2 text-amber-600 font-bold text-sm mr-auto bg-amber-50 px-4 py-2 rounded-xl border border-amber-100">
-                  <AlertTriangle className="w-4 h-4" /> Unsaved Changes
-                </div>
-              )}
-              <div className="flex gap-4 w-full md:w-auto">
-                <button 
-                  onClick={handleSave}
-                  className="flex-grow md:flex-none bg-blue-600 text-white px-10 py-4 rounded-2xl font-bold shadow-xl flex items-center justify-center gap-2 hover:bg-blue-700 transition-all active:scale-[0.98]"
-                >
-                  <Save className="w-5 h-5" /> Confirm & Save
-                </button>
-                <button 
-                  onClick={handleCancel}
-                  className="px-8 bg-slate-100 text-slate-700 py-4 rounded-2xl font-bold hover:bg-slate-200 transition-all"
-                >
-                  Discard Changes
-                </button>
-              </div>
+            <div className="max-w-4xl w-full flex gap-4 items-center justify-end">
+              {isDirty && <div className="hidden md:flex items-center gap-2 text-amber-600 font-bold text-sm mr-auto"><AlertTriangle className="w-4 h-4" /> Unsaved Changes</div>}
+              <button onClick={handleSave} className="bg-blue-600 text-white px-10 py-4 rounded-2xl font-bold shadow-xl flex items-center gap-2 hover:bg-blue-700 active:scale-[0.98]"><Save className="w-5 h-5" /> Confirm & Save</button>
+              <button onClick={handleCancel} className="px-8 bg-slate-100 text-slate-700 py-4 rounded-2xl font-bold hover:bg-slate-200 transition-all">Discard</button>
             </div>
           </div>
         )}

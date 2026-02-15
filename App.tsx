@@ -10,6 +10,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import Profile from './pages/Profile';
 import JobDetails from './pages/JobDetails';
 import CompanyBranding from './pages/CompanyBranding';
+import CandidateProfile from './pages/CandidateProfile';
 import { AppProvider, useAppContext } from './context/AppContext';
 import { UserRole } from './types';
 
@@ -37,6 +38,16 @@ const AppRoutes = () => {
             } 
           />
           <Route path="/profile" element={user ? <Profile /> : <Navigate to="/login" />} />
+          
+          {/* Role-Specific Protected Route: Only Employer/Admin can view candidate profiles */}
+          <Route 
+            path="/candidate/:id" 
+            element={
+              !user ? <Navigate to="/login" /> :
+              (user.role === UserRole.EMPLOYER || user.role === UserRole.ADMIN) ? <CandidateProfile /> :
+              <Navigate to="/dashboard" />
+            } 
+          />
           
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>

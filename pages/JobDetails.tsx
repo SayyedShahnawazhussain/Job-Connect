@@ -1,16 +1,27 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
-import { MapPin, Building2, Clock, ArrowLeft, CheckCircle, Share2, Globe, Edit2, Trash2, Copy, MessageCircle, Linkedin, Check } from 'lucide-react';
+import { 
+  MapPin, Building2, Clock, ArrowLeft, CheckCircle, Share2, Globe, 
+  Edit2, Trash2, Copy, MessageCircle, Linkedin, Check, FileText, Upload, X, Loader2 
+} from 'lucide-react';
 import { UserRole, JobStatus } from '../types';
 
 const JobDetails: React.FC = () => {
   const { id } = useParams();
-  const { jobs, applyForJob, user, applications, isOwnerOrAdmin, deleteJob } = useAppContext();
+  const { jobs, applyForJob, user, applications, isOwnerOrAdmin, deleteJob, updateUser } = useAppContext();
   const navigate = useNavigate();
   const [showShareMenu, setShowShareMenu] = useState(false);
   const [copied, setCopied] = useState(false);
+  
+  // Application Modal States
+  const [showApplyModal, setShowApplyModal] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [tempName, setTempName] = useState(user?.name || '');
+  const [tempResume, setTempResume] = useState<string | null>(null);
+  const [resumeFileName, setResumeFileName] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const job = jobs.find(j => j.id === id);
   const alreadyApplied = user && applications.some(a => a.jobId === id && a.candidateId === user.id);
@@ -25,7 +36,45 @@ const JobDetails: React.FC = () => {
       navigate('/login');
       return;
     }
+
+    // Check if profile is complete (Name and Resume)
+    if (!user.resumeUrl) {
+      setShowApplyModal(true);
+      return;
+    }
+
     applyForJob(job.id);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setIsUploading(true);
+      setResumeFileName(file.name);
+      const reader = new FileReader();
+      reader.onload = () => {
+        setTempResume(reader.result as string);
+        setIsUploading(false);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleCompleteAndApply = () => {
+    if (!tempResume && !user?.resumeUrl) {
+      alert("Please upload your resume first.");
+      return;
+    }
+
+    // Update profile first
+    updateUser({
+      name: tempName,
+      resumeUrl: tempResume || user?.resumeUrl
+    });
+
+    // Then apply
+    applyForJob(job.id);
+    setShowApplyModal(false);
   };
 
   const handleDelete = () => {
@@ -67,7 +116,6 @@ const JobDetails: React.FC = () => {
               <Share2 className="w-4 h-4" /> Share
             </button>
 
-            {/* Share Pop-over Menu */}
             {showShareMenu && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setShowShareMenu(false)}></div>
@@ -114,7 +162,6 @@ const JobDetails: React.FC = () => {
         </div>
 
         <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-100">
-          {/* Header Banner */}
           <div className="h-40 bg-slate-900 relative">
             <div className="absolute inset-0 bg-blue-600/10"></div>
             <Link to={`/company/${job.employerId}`} className="absolute -bottom-10 left-10 p-4 bg-white rounded-3xl shadow-2xl border border-slate-100 w-32 h-32 flex items-center justify-center overflow-hidden hover:scale-105 transition-transform">
@@ -202,6 +249,73 @@ const JobDetails: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Complete Profile & Apply Modal */}
+      {showApplyModal && (
+        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md flex items-center justify-center z-[200] px-6">
+          <div className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl p-10 animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center mb-8">
+              <div>
+                <h3 className="text-2xl font-black text-slate-900">Complete Application</h3>
+                <p className="text-slate-500 text-sm font-medium">Please provide your details to apply</p>
+              </div>
+              <button onClick={() => setShowApplyModal(false)} className="p-2 hover:bg-slate-100 rounded-xl transition-all">
+                <X className="w-6 h-6 text-slate-400" />
+              </button>
+            </div>
+
+            <div className="space-y-6">
+              <div>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2 px-1">Full Name</label>
+                <input 
+                  type="text" 
+                  value={tempName}
+                  onChange={(e) => setTempName(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 outline-none focus:ring-4 focus:ring-blue-100 font-bold text-slate-800 transition-all"
+                  placeholder="Enter your professional name"
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2 px-1">Upload Resume (PDF/DOC)</label>
+                <div 
+                  onClick={() => fileInputRef.current?.click()}
+                  className={`border-2 border-dashed rounded-3xl p-8 text-center transition-all cursor-pointer ${tempResume ? 'border-emerald-200 bg-emerald-50/30' : 'border-slate-100 hover:border-blue-400 hover:bg-blue-50/30'}`}
+                >
+                  <input type="file" ref={fileInputRef} className="hidden" accept=".pdf,.doc,.docx" onChange={handleFileChange} />
+                  <div className="flex flex-col items-center">
+                    {isUploading ? (
+                      <Loader2 className="w-10 h-10 text-blue-600 mb-3 animate-spin" />
+                    ) : tempResume ? (
+                      <div className="flex flex-col items-center">
+                        <CheckCircle className="w-10 h-10 text-emerald-500 mb-3" />
+                        <p className="text-emerald-700 font-bold truncate max-w-[200px]">{resumeFileName}</p>
+                        <p className="text-emerald-500 text-xs mt-1">Ready to apply!</p>
+                      </div>
+                    ) : (
+                      <>
+                        <Upload className="w-10 h-10 text-blue-600 mb-3" />
+                        <p className="text-slate-800 font-bold">Choose a file</p>
+                        <p className="text-slate-400 text-xs mt-1">PDF, DOC, DOCX up to 5MB</p>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-4">
+                <button 
+                  onClick={handleCompleteAndApply}
+                  disabled={!tempResume && !user?.resumeUrl}
+                  className="w-full bg-blue-600 text-white py-5 rounded-[1.5rem] font-black text-lg hover:bg-blue-700 shadow-xl transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  <FileText className="w-5 h-5" /> Confirm & Apply
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

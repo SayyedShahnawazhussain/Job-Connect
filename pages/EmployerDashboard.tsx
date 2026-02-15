@@ -2,11 +2,11 @@
 import React, { useState } from 'react';
 import { useAppContext } from '../context/AppContext';
 import { ApplicationStatus, InterviewMode, Interview, JobStatus } from '../types';
-import { Plus, Users, Briefcase, Calendar, X, Check, Search, Download, MapPin, ExternalLink, Edit2, AlertCircle, Video, MapPinned, Info, CheckCircle2 } from 'lucide-react';
+import { Plus, Users, Briefcase, Calendar, X, Check, Search, Download, MapPin, ExternalLink, Edit2, AlertCircle, Video, MapPinned, Info, CheckCircle2, Eye, User } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const EmployerDashboard: React.FC = () => {
-  const { user, jobs, applications, updateApplicationStatus, scheduleInterview, postJob, deleteJob } = useAppContext();
+  const { user, jobs, applications, updateApplicationStatus, scheduleInterview, postJob, deleteJob, registeredUsers } = useAppContext();
   
   const employerJobs = jobs.filter(j => j.employerId === user?.id && j.status !== JobStatus.DELETED);
   const relevantApplications = applications.filter(a => employerJobs.some(j => j.id === a.jobId));
@@ -73,6 +73,29 @@ const EmployerDashboard: React.FC = () => {
     setIntTime('');
     setIntLocation('');
     setIntNotes('');
+  };
+
+  const handleViewResume = (candidateId: string) => {
+    const candidate = registeredUsers.find(u => u.id === candidateId);
+    if (candidate?.resumeUrl) {
+      window.open(candidate.resumeUrl, '_blank');
+    } else {
+      alert("No resume available for this candidate.");
+    }
+  };
+
+  const handleDownloadResume = (candidateId: string, name: string) => {
+    const candidate = registeredUsers.find(u => u.id === candidateId);
+    if (candidate?.resumeUrl) {
+      const link = document.createElement('a');
+      link.href = candidate.resumeUrl;
+      link.download = `${name}_Resume`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } else {
+      alert("No resume available for this candidate.");
+    }
   };
 
   const getStatusLabel = (status: JobStatus) => {
@@ -162,11 +185,23 @@ const EmployerDashboard: React.FC = () => {
                         {app.candidateName.charAt(0)}
                       </div>
                       <div className="space-y-2">
-                        <h3 className="text-2xl font-black text-slate-900">{app.candidateName}</h3>
+                        <Link to={`/candidate/${app.candidateId}`} className="text-2xl font-black text-slate-900 hover:text-blue-600 transition-colors">{app.candidateName}</Link>
                         <p className="text-slate-500 font-medium">Applied for <span className="text-blue-600 font-black">{app.jobTitle}</span></p>
-                        <div className="flex flex-wrap items-center gap-4 mt-4">
-                          <button className="text-xs font-black text-blue-600 flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors">
-                            <Download className="w-4 h-4" /> View Resume
+                        <div className="flex flex-wrap items-center gap-3 mt-4">
+                          <Link to={`/candidate/${app.candidateId}`} className="text-[10px] font-black text-blue-600 flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors">
+                            <User className="w-3 h-3" /> View Profile
+                          </Link>
+                          <button 
+                            onClick={() => handleViewResume(app.candidateId)}
+                            className="text-[10px] font-black text-slate-600 flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors"
+                          >
+                            <Eye className="w-3 h-3" /> View Resume
+                          </button>
+                          <button 
+                            onClick={() => handleDownloadResume(app.candidateId, app.candidateName)}
+                            className="text-[10px] font-black text-slate-600 flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors"
+                          >
+                            <Download className="w-3 h-3" /> Download
                           </button>
                           <span className={`text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-full border ${
                             app.status === ApplicationStatus.APPLIED ? 'bg-slate-50 text-slate-500 border-slate-100' :

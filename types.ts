@@ -32,6 +32,9 @@ export interface User {
   email: string;
   role: UserRole;
   name: string;
+  phone?: string;
+  experience?: string;
+  education?: string;
   companyName?: string;
   companyLogo?: string;
   profilePic?: string;
@@ -48,7 +51,7 @@ export interface User {
 
 export interface Job {
   id: string;
-  employerId: string; // Acts as ownerId
+  employerId: string;
   companyName: string;
   companyLogo?: string;
   title: string;
