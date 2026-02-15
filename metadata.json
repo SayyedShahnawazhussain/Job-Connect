@@ -1,0 +1,7 @@
+{
+  "name": "JOB CONNECT",
+  "description": "A comprehensive job portal for candidates, employers, and administrators with advanced interview scheduling, real-time tracking, and analytics.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
