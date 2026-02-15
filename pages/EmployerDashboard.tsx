@@ -16,7 +16,6 @@ const EmployerDashboard: React.FC = () => {
   const [showInterviewModal, setShowInterviewModal] = useState<string | null>(null);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
   
-  // Interview Form State
   const [intName, setIntName] = useState('');
   const [intDate, setIntDate] = useState('');
   const [intTime, setIntTime] = useState('');
@@ -24,7 +23,6 @@ const EmployerDashboard: React.FC = () => {
   const [intLocation, setIntLocation] = useState('');
   const [intNotes, setIntNotes] = useState('');
 
-  // Job Form State
   const [newJobTitle, setNewJobTitle] = useState('');
   const [newJobLocation, setNewJobLocation] = useState('');
   const [newJobSalary, setNewJobSalary] = useState('');
@@ -70,7 +68,6 @@ const EmployerDashboard: React.FC = () => {
     setShowSuccessToast(true);
     setTimeout(() => setShowSuccessToast(false), 3000);
     
-    // Reset form
     setIntName('');
     setIntDate('');
     setIntTime('');
@@ -90,7 +87,6 @@ const EmployerDashboard: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto py-12 px-6">
-      {/* Toast Notification */}
       {showSuccessToast && (
         <div className="fixed top-24 right-8 z-[110] bg-emerald-500 text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 animate-in slide-in-from-right-10 fade-in duration-300">
           <CheckCircle2 className="w-6 h-6" />
@@ -273,7 +269,6 @@ const EmployerDashboard: React.FC = () => {
         )}
       </div>
 
-      {/* Post Job Modal */}
       {showJobModal && (
         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md flex items-center justify-center z-[150] px-4">
           <div className="bg-white w-full max-w-2xl rounded-[3.5rem] p-12 shadow-2xl overflow-y-auto max-h-[90vh] animate-in zoom-in-95 duration-200">
@@ -350,7 +345,6 @@ const EmployerDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* Schedule Interview Modal */}
       {showInterviewModal && (
         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md flex items-center justify-center z-[150] px-4">
            <div className="bg-white w-full max-w-2xl rounded-[3.5rem] p-12 shadow-2xl max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
